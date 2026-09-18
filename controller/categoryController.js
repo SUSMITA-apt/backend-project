@@ -1,65 +1,113 @@
-const Category = require('../models/categoryModel')
+const Category = require('../models/categoryModel');
 
-let createCategory = async (req, res) => {
+
+// =========================
+// Create Category
+// =========================
+const createCategory = async (req, res) => {
     try {
-        let { name } = req.body
+        const { name } = req.body;
 
-        let category = new Category({
-            name: name,
-        })
+        // Validate category name
+        if (!name || !name.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Category name is required'
+            });
+        }
 
-        await category.save()
+        const category = new Category({
+            name: name.trim()
+        });
 
-        res.json({
+        await category.save();
+
+        return res.status(201).json({
             success: true,
-            message: 'Category Created'
-        })
+            message: 'Category created successfully',
+            data: category
+        });
 
     } catch (error) {
-        res.status(500).json({
+        console.error('Create Category Error:', error);
+
+        return res.status(500).json({
             success: false,
             message: 'Category creation failed',
             error: error.message
-        })
+        });
     }
-}
+};
 
-// all category
-let allCategory = async (req, res) => {
+
+// =========================
+// Get All Categories
+// =========================
+const allCategory = async (req, res) => {
     try {
-        let data = await Category.find({})
+        const data = await Category.find({});
 
-        res.json({
+        return res.status(200).json({
             success: true,
-            message: 'All category collected',
-            data: data
-        })
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        })
-    }
-}
+            message: 'All categories retrieved successfully',
+            data
+        });
 
-// delete category
-let deleteCategory = async (req, res) => {
+    } catch (error) {
+        console.error('Get Categories Error:', error);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve categories',
+            error: error.message
+        });
+    }
+};
+
+
+// =========================
+// Delete Category
+// =========================
+const deleteCategory = async (req, res) => {
     try {
-        let { id } = req.params
+        const { id } = req.params;
 
-        let cata = await Category.findByIdAndDelete(id)
+        if (!id) {
+            return res.status(400).json({
+                success: false,
+                message: 'Category ID is required'
+            });
+        }
 
-        res.json({
+        const category = await Category.findByIdAndDelete(id);
+
+        if (!category) {
+            return res.status(404).json({
+                success: false,
+                message: 'Category not found'
+            });
+        }
+
+        return res.status(200).json({
             success: true,
-            message: 'Category Deleted',
-            data: cata
-        })
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        })
-    }
-}
+            message: 'Category deleted successfully',
+            data: category
+        });
 
-module.exports = { createCategory, allCategory, deleteCategory }
+    } catch (error) {
+        console.error('Delete Category Error:', error);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to delete category',
+            error: error.message
+        });
+    }
+};
+
+
+module.exports = {
+    createCategory,
+    allCategory,
+    deleteCategory
+};

@@ -1,64 +1,157 @@
-const Product = require('../models/productModel')
+const Product = require('../models/productModel');
 
+
+// =========================
+// Create Product
+// =========================
 const ProductController = async (req, res) => {
-    const { title, description, price, discundprice, catagory, stock, sku, images, status, tags, weight, slug } = req.body
+    try {
+        const {
+            title,
+            description,
+            price,
+            discundprice,
+            catagory,
+            stock,
+            sku,
+            images,
+            status,
+            tags,
+            weight,
+            slug
+        } = req.body;
 
+        // Validate required fields
+        if (!title || price === undefined || price === null) {
+            return res.status(400).json({
+                success: false,
+                message: 'Title and price are required'
+            });
+        }
 
-    if (!title || !price) {
-        return res.json({
+        // Create slug from title if slug is not provided
+        const productSlug = slug
+            ? slug.toLowerCase().trim()
+            : title
+                .toLowerCase()
+                .trim()
+                .replace(/\s+/g, '-');
+
+        // Check duplicate slug
+        const existingSlug = await Product.findOne({
+            slug: productSlug
+        });
+
+        if (existingSlug) {
+            return res.status(409).json({
+                success: false,
+                message: 'A product with this slug already exists'
+            });
+        }
+
+        // Create product
+        const product = new Product({
+            title: title.trim(),
+            description,
+            price,
+            discundprice,
+            catagory,
+            stock,
+            sku,
+            images,
+            status,
+            tags,
+            weight,
+            slug: productSlug
+        });
+
+        await product.save();
+
+        return res.status(201).json({
+            success: true,
+            message: 'Product created successfully',
+            data: product
+        });
+
+    } catch (error) {
+        console.error('Create Product Error:', error);
+
+        return res.status(500).json({
             success: false,
-            message: 'title and price is requied!'
-        })
+            message: 'Product creation failed',
+            error: error.message
+        });
     }
+};
 
-    // slug create
-    let Slug = title.toLowerCase().split(' ').join('-')
-    // আগে থেকে database এ এই title এ কোন slug আছে কিনা চেক করতে হবে 
-    let existingSlug = Product.findOne({ slug: Slug })
 
-    // না থাকলে database এ সেভ করতে হবে 
-    let product = new Product({
-        title: title,
-        description: description,
-        price: price,
-        discundprice: discundprice,
-        catagory: catagory,
-        stock: stock,
-        sku: sku,
-        images: images,
-        status: status,
-        tags: tags,
-        weight: weight,
-        slug: slug
-    })
-    await product.save
-}
+// =========================
+// Get Single Product
+// =========================
+const getProductId = async (req, res) => {
+    try {
+        const { id } = req.params;
 
-// প্রোডাক্ট আছে কিনা চেক করার জন্য 
-let getProductId = async (req, res) => {
-    let { id } = req.body
+        if (!id) {
+            return res.status(400).json({
+                success: false,
+                message: 'Product ID is required'
+            });
+        }
 
-    let data = await Product.findById({ id })
-    if (!data) {
-        return res.json({
+        const data = await Product.findById(id);
+
+        if (!data) {
+            return res.status(404).json({
+                success: false,
+                message: 'Product not found'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data
+        });
+
+    } catch (error) {
+        console.error('Get Product Error:', error);
+
+        return res.status(500).json({
             success: false,
-            message: 'no found product!'
-        })
+            message: 'Failed to get product',
+            error: error.message
+        });
     }
-    res.json({
-        success: true,
-        data
-    })
-
-}
-
-// সকল প্রোডাক্ট নিয়ে আসার জন্য 
-
-const getAllProduct = (req,res)=>{
-     
-}
+};
 
 
+// =========================
+// Get All Products
+// =========================
+const getAllProduct = async (req, res) => {
+    try {
+        const data = await Product.find({});
+
+        return res.status(200).json({
+            success: true,
+            message: 'All products retrieved successfully',
+            data
+        });
+
+    } catch (error) {
+        console.error('Get All Products Error:', error);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve products',
+            error: error.message
+        });
+    }
+};
 
 
-module.exports = { ProductController }
+module.exports = {
+    ProductController,
+    getProductId,
+    getAllProduct
+};

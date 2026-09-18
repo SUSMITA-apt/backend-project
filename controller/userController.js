@@ -1,114 +1,219 @@
-let User = require('../models/userModel')
-let bcrypt = require('bcryptjs')
+const User = require('../models/userModel');
+const bcrypt = require('bcryptjs');
 
 
-// update user
-let updateUser = async (req, res) => {
-    let { id } = req.params
+// =========================
+// Update User
+// =========================
+const updateUser = async (req, res) => {
     try {
-        let data = await User.findByIdAndUpdate({ _id: id }, req.body, { new: true }).select("-password")
-        res.json({
+        const { id } = req.params;
+
+        const data = await User.findByIdAndUpdate(
+            id,
+            req.body,
+            {
+                new: true,
+                runValidators: true
+            }
+        ).select('-password');
+
+        if (!data) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        return res.status(200).json({
             success: true,
-            message: 'user update successfully',
-            data: data
-        })
+            message: 'User updated successfully',
+            data
+        });
+
     } catch (error) {
-        res.json({
+        console.error('Update User Error:', error);
+
+        return res.status(500).json({
             success: false,
-            message: 'user not update',
-        })
+            message: 'User update failed',
+            error: error.message
+        });
     }
-}
+};
 
 
-// all user
-let alluser = async (req, res) => {
-    let data = await User.find({})
+// =========================
+// Get All Users
+// =========================
+const alluser = async (req, res) => {
     try {
-        res.json({
+        const data = await User.find({}).select('-password');
+
+        return res.status(200).json({
             success: true,
-            message: 'all user',
-            data: data
-        })
+            message: 'All users retrieved successfully',
+            data
+        });
+
     } catch (error) {
-        res.json({
+        console.error('Get All Users Error:', error);
+
+        return res.status(500).json({
             success: false,
-            message: 'user not found',
-        })
+            message: 'Failed to retrieve users',
+            error: error.message
+        });
     }
-}
+};
 
 
-// get single user 
-let singleuser = async (req, res) => {
-    let { id } = req.params
-    let data = await User.findById({ _id: id })
+// =========================
+// Get Single User
+// =========================
+const singleuser = async (req, res) => {
     try {
-        res.json({
+        const { id } = req.params;
+
+        const data = await User.findById(id).select('-password');
+
+        if (!data) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        return res.status(200).json({
             success: true,
-            message: 'single user',
-            data: data
-        })
+            message: 'User retrieved successfully',
+            data
+        });
+
     } catch (error) {
-        res.json({
+        console.error('Get Single User Error:', error);
+
+        return res.status(500).json({
             success: false,
-            message: 'user not found',
-        })
+            message: 'Failed to retrieve user',
+            error: error.message
+        });
     }
-}
+};
 
-// delete user 
 
-let deleteuser = async (req, res) => {
-    let { id } = req.params
-    let data = await User.findByIdAndDelete({ _id: id })
+// =========================
+// Delete User
+// =========================
+const deleteuser = async (req, res) => {
     try {
-        res.json({
+        const { id } = req.params;
+
+        const data = await User.findByIdAndDelete(id);
+
+        if (!data) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        return res.status(200).json({
             success: true,
-            message: 'user delete successfully',
-        })
+            message: 'User deleted successfully'
+        });
+
     } catch (error) {
-        res.json({
+        console.error('Delete User Error:', error);
+
+        return res.status(500).json({
             success: false,
-            message: 'user not delete',
-        })
+            message: 'User deletion failed',
+            error: error.message
+        });
     }
-}
+};
 
 
-// change password
-let changepassword = async (req, res) => {
-    let { id } = req.params
-    let { currentPassword, newPassword, confirmPassword } = req.body
+// =========================
+// Change Password
+// =========================
+const changepassword = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            currentPassword,
+            newPassword,
+            confirmPassword
+        } = req.body;
 
-    existingUser = await User.findOne({_id: id})
+        // Validate fields
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please fill in all password fields'
+            });
+        }
 
-    if (!existingUser) {
-        return res.json({
+        // Check new passwords
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'New passwords do not match'
+            });
+        }
+
+        // Find user
+        const existingUser = await User.findById(id);
+
+        if (!existingUser) {
+            return res.status(404).json({
+                success: false,
+                message: 'Invalid user'
+            });
+        }
+
+        // Check current password
+        const passwordMatch = await bcrypt.compare(
+            currentPassword,
+            existingUser.password
+        );
+
+        if (!passwordMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'Current password is incorrect'
+            });
+        }
+
+        // Hash new password
+        const hash = await bcrypt.hash(newPassword, 10);
+
+        existingUser.password = hash;
+
+        await existingUser.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Password updated successfully'
+        });
+
+    } catch (error) {
+        console.error('Change Password Error:', error);
+
+        return res.status(500).json({
             success: false,
-            message: 'invalid user'
-        })
+            message: 'Password update failed',
+            error: error.message
+        });
     }
+};
 
-    let pass = bcrypt.compareSync(currentPassword, existingUser.password)
-    if (!pass) {
-        return res.json({
-            success: false,
-            message: 'current password not match'
-        })
-    }
-    if( newPassword !==  confirmPassword){
-        return res.json({
-            success: false,
-            message: 'confirmpassword not match'
-        })
-    }
-    const hash = bcrypt.hashSync(newPassword, 10);
 
-    let data = await User.findByIdAndUpdate({_id: id}, {password: hash}, {new: true})
-    res.json({
-        success: true,
-        message: "password update suscesfull"
-    })
-}
-module.exports = { updateUser, alluser, singleuser, deleteuser,changepassword }
+module.exports = {
+    updateUser,
+    alluser,
+    singleuser,
+    deleteuser,
+    changepassword
+};
